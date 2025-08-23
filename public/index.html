@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI App Builder</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <h1>🤖 AI App Builder</h1>
+            <div class="controls">
+                <select id="modelSelect">
+                    <option value="gemini">Gemini</option>
+                    <option value="qwen">Qwen Coder</option>
+                    <option value="mistral">Mistral</option>
+                </select>
+                <button id="agentToggle" class="btn">Agent: OFF</button>
+            </div>
+        </header>
+
+        <div class="main-content">
+            <!-- Sidebar -->
+            <div class="sidebar">
+                <!-- File Explorer -->
+                <div class="file-explorer">
+                    <h3>📁 Files</h3>
+                    <div id="fileList" class="file-list">
+                        <div class="no-files">No files yet. Start building!</div>
+                    </div>
+                </div>
+
+                <!-- Chat Interface -->
+                <div class="chat-interface">
+                    <h3>💬 Chat</h3>
+                    <div id="chatMessages" class="chat-messages"></div>
+                    <div class="chat-input">
+                        <input type="text" id="messageInput" placeholder="Describe the app you want to build...">
+                        <button id="sendBtn" class="btn">Send</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Editor Area -->
+            <div class="editor-area">
+                <!-- Code Editor -->
+                <div class="code-editor">
+                    <div class="editor-header">
+                        <span id="activeFileName">No file selected</span>
+                    </div>
+                    <textarea id="codeEditor" placeholder="Select a file to edit or create a new app..."></textarea>
+                </div>
+
+                <!-- Live Preview -->
+                <div class="preview-area">
+                    <div class="preview-header">
+                        <span>🔍 Live Preview</span>
+                        <button id="refreshPreview" class="btn-small">Refresh</button>
+                    </div>
+                    <iframe id="previewFrame" sandbox="allow-scripts"></iframe>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
