@@ -1,6 +1,12 @@
 class AIAppBuilder {
     constructor() {
-        this.socket = io();
+        // Fix Socket.IO connection for deployment
+        this.socket = io({
+            transports: ['websocket', 'polling'],
+            upgrade: true,
+            rememberUpgrade: true
+        });
+        
         this.project = { files: {}, activeFile: null };
         this.agentMode = false;
         this.selectedModel = 'gemini';
@@ -8,6 +14,41 @@ class AIAppBuilder {
         this.initializeElements();
         this.setupEventListeners();
         this.setupSocketListeners();
+        
+        // Add connection status
+        this.checkConnection();
+    }
+
+    checkConnection() {
+        this.socket.on('connect', () => {
+            console.log('Connected to server');
+            this.showStatus('Connected', 'success');
+        });
+
+        this.socket.on('disconnect', () => {
+            console.log('Disconnected from server');
+            this.showStatus('Disconnected', 'error');
+        });
+
+        this.socket.on('connect_error', (error) => {
+            console.error('Connection error:', error);
+            this.showStatus('Connection Error', 'error');
+        });
+    }
+
+    showStatus(message, type) {
+        // Add status indicator to header
+        let statusEl = document.getElementById('connectionStatus');
+        if (!statusEl) {
+            statusEl = document.createElement('span');
+            statusEl.id = 'connectionStatus';
+            statusEl.style.marginLeft = '10px';
+            statusEl.style.fontSize = '0.8em';
+            document.querySelector('.header h1').appendChild(statusEl);
+        }
+        
+        statusEl.textContent = message;
+        statusEl.style.color = type === 'success' ? '#0e7d0e' : '#ff4444';
     }
 
     initializeElements() {
@@ -28,28 +69,36 @@ class AIAppBuilder {
     setupEventListeners() {
         // Agent toggle
         this.elements.agentToggle.addEventListener('click', () => {
-            this.socket.emit('toggleAgent');
+            if (this.socket.connected) {
+                this.socket.emit('toggleAgent');
+            } else {
+                this.showStatus('Not connected', 'error');
+            }
         });
 
         // Model selection
         this.elements.modelSelect.addEventListener('change', (e) => {
-            this.socket.emit('switchModel', e.target.value);
+            if (this.socket.connected) {
+                this.socket.emit('switchModel', e.target.value);
+            }
         });
 
-        // Send message
-        this.elements.sendBtn.addEventListener('click', () => {
+        // Send message - Fixed
+        this.elements.sendBtn.addEventListener('click', (e) => {
+            e.preventDefault();
             this.sendMessage();
         });
 
         this.elements.messageInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
+                e.preventDefault();
                 this.sendMessage();
             }
         });
 
         // Code editor
         this.elements.codeEditor.addEventListener('input', () => {
-            if (this.project.activeFile) {
+            if (this.project.activeFile && this.socket.connected) {
                 this.project.files[this.project.activeFile] = this.elements.codeEditor.value;
                 this.socket.emit('updateFile', {
                     fileName: this.project.activeFile,
@@ -92,9 +141,21 @@ class AIAppBuilder {
         const message = this.elements.messageInput.value.trim();
         if (!message) return;
 
+        if (!this.socket.connected) {
+            this.showStatus('Not connected - trying to reconnect...', 'error');
+            this.socket.connect();
+            return;
+        }
+
         this.addMessage({ message, type: 'chat' }, 'user');
-        this.socket.emit('sendMessage', { message });
-        this.elements.messageInput.value = '';
+        
+        try {
+            this.socket.emit('sendMessage', { message });
+            this.elements.messageInput.value = '';
+        } catch (error) {
+            console.error('Send error:', error);
+            this.addMessage({ message: 'Error sending message', type: 'error' }, 'ai');
+        }
     }
 
     addMessage(data, sender) {
@@ -163,5 +224,7 @@ class AIAppBuilder {
     }
 }
 
-// Initialize the app
-const appBuilder = new AIAppBuilder();
+// Initialize the app when DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
+    window.appBuilder = new AIAppBuilder();
+});
