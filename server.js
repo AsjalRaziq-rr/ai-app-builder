@@ -11,7 +11,9 @@ const io = socketIo(server, {
   cors: {
     origin: "*",
     methods: ["GET", "POST"]
-  }
+  },
+  transports: ['websocket', 'polling'],
+  allowEIO3: true
 });
 
 app.use(cors());
@@ -30,6 +32,11 @@ app.get('/favicon.ico', (req, res) => {
   res.status(204).send();
 });
 
+// Health check for deployment
+app.get('/health', (req, res) => {
+  res.json({ status: 'OK', timestamp: new Date().toISOString() });
+});
+
 // Socket connection
 io.on('connection', (socket) => {
   console.log('User connected:', socket.id);
@@ -39,7 +46,11 @@ io.on('connection', (socket) => {
     activeFile: null
   };
 
+  // Send initial connection confirmation
+  socket.emit('connected', { status: 'Connected to AI App Builder' });
+
   socket.on('sendMessage', async (data) => {
+    console.log('Received message:', data.message);
     try {
       const response = await aiService.processMessage(data.message, userProject);
       
@@ -59,6 +70,7 @@ io.on('connection', (socket) => {
         });
       }
     } catch (error) {
+      console.error('Message processing error:', error);
       socket.emit('aiResponse', {
         type: 'error',
         message: `Error: ${error.message}`
@@ -69,11 +81,13 @@ io.on('connection', (socket) => {
   socket.on('toggleAgent', () => {
     aiService.toggleMode();
     socket.emit('agentModeChanged', aiService.agentMode);
+    console.log('Agent mode toggled:', aiService.agentMode);
   });
 
   socket.on('switchModel', (model) => {
     aiService.switchModel(model);
     socket.emit('modelChanged', model);
+    console.log('Model switched to:', model);
   });
 
   socket.on('updateFile', (data) => {
@@ -82,9 +96,18 @@ io.on('connection', (socket) => {
     socket.emit('projectUpdate', userProject);
   });
 
-  socket.on('disconnect', () => {
-    console.log('User disconnected:', socket.id);
+  socket.on('disconnect', (reason) => {
+    console.log('User disconnected:', socket.id, 'Reason:', reason);
   });
+
+  socket.on('error', (error) => {
+    console.error('Socket error:', error);
+  });
+});
+
+// Handle server errors
+server.on('error', (error) => {
+  console.error('Server error:', error);
 });
 
 const PORT = process.env.PORT || 3001;
